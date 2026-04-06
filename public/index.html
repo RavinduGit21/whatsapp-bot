@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Bot Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">💻</span>
+                <h1>Ravindu Dev Leads</h1>
+            </div>
+            <nav>
+                <div class="nav-item active" data-tab="orders">
+                    <span class="nav-icon">📊</span>
+                    <span>New Leads</span>
+                </div>
+                <div class="nav-item" data-tab="stats">
+                    <span class="nav-icon">🏢</span>
+                    <span>Agency Stats</span>
+                </div>
+                <div class="nav-item" data-tab="menu">
+                    <span class="nav-icon">📜</span>
+                    <span>Service Editor</span>
+                </div>
+            </nav>
+            <div class="bot-status online">
+                <span class="status-indicator"></span>
+                <span>Bot Online</span>
+            </div>
+        </aside>
+
+        <main class="content">
+            <header>
+                <div class="header-left">
+                    <h2 id="top-title">Live Orders</h2>
+                    <p id="top-subtitle">Real-time updates from your customers</p>
+                </div>
+                <div class="header-right">
+                    <div class="search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" placeholder="Search orders...">
+                    </div>
+                </div>
+            </header>
+
+            <div id="orders-tab" class="tab-content active">
+                <section class="stats-overview">
+                    <div class="stat-card">
+                        <h3>New Leads</h3>
+                        <p id="stat-pending">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>In Progress</h3>
+                        <p id="stat-preparing">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Potential Revenue</h3>
+                        <p id="stat-total">Rs. 0.00</p>
+                    </div>
+                </section>
+
+                <div class="order-grid" id="order-list">
+                    <!-- Orders will be injected here -->
+                </div>
+            </div>
+
+            <div id="stats-tab" class="tab-content">
+                <div class="placeholder-content">
+                    <h3>Stats Dashboard Coming Soon</h3>
+                    <p>Advanced analytics and revenue reports.</p>
+                </div>
+            </div>
+
+            <div id="menu-tab" class="tab-content">
+                <div class="placeholder-content">
+                    <h3>Menu Management</h3>
+                    <p>Edit your menu items and prices in real-time.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Order Details</h2>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

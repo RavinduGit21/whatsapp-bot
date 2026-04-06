@@ -1,0 +1,6 @@
+[
+  { "id": 1, "name": "🌍 සාමාන්‍ය වෙබ් අඩවිය (Starter Website)", "description": "පිටු 1-3 ක සරල වෙබ් අඩවියක්. (Rs. 15,000+)", "price": 15000.00, "category": "Starter" },
+  { "id": 2, "name": "🏢 ව්‍යාපාරික වෙබ් අඩවිය (Business Profile)", "description": "පිටු 5-10, Responsive Design, වෘත්තීය වෙබ් අඩවියක්. (Rs. 35,000+)", "price": 35000.00, "category": "Business" },
+  { "id": 3, "name": "🛒 අන්තර්ජාල වෙළඳසැල (E-Commerce Store)", "description": "ඔන්ලයින් බඩු විකිණීමට සහ ගෙවීම් ලබා ගැනීමට. (Rs. 65,000+)", "price": 65000.00, "category": "E-Commerce" },
+  { "id": 4, "name": "🚀 විශේෂිත වෙබ් යෙදුම් (Custom Web App)", "description": "ඔබේ අවශ්‍යතාවයට සරිලන පරිදි නිපදවන සංකීර්ණ යෙදුම්. (මිල සාකච්ඡා කර තීරණය කළ හැකිය)", "price": 0, "category": "Custom" }
+]

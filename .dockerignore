@@ -1,0 +1,7 @@
+node_modules
+.wwebjs_auth
+.wwebjs_cache
+.vscode
+.git
+orders.db
+npm-debug.log
