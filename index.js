@@ -75,20 +75,18 @@ const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    protocolTimeout: 60000, // Wait longer for AWS
+    protocolTimeout: 120000, // 2 minutes (Extreme stability for AWS)
     args: [
       '--no-sandbox', 
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--no-zygote',
-      '--no-first-run',
+      '--single-process',
       '--disable-extensions',
       '--disable-notifications'
     ]
-  },
-  // Using the latest remote version known to work on AWS
-  webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1012170010-alpha.html'
+  }
 });
 
 const menuData = JSON.parse(fs.readFileSync('menu.json', 'utf8'));
