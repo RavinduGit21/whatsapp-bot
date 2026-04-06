@@ -57,8 +57,7 @@ const client = new Client({
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu'
-    ],
-    executablePath: '/usr/bin/google-chrome' // This is the path in our Docker image
+    ]
   },
   webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2413.51-beta.html'
 });
