@@ -53,17 +53,13 @@ const client = new Client({
       '--no-sandbox', 
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
       '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-setuid-sandbox',
-      '--js-flags="--max-old-space-size=400"' // Force JS to stay under 400MB
+      '--no-zygote',
+      '--no-first-run'
     ],
     headless: true
   },
-  // Using a very stable version for cloud environments
+  // Using the latest remote version known to work on AWS
   webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1012170010-alpha.html'
 });
 
