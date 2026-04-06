@@ -153,7 +153,7 @@ client.on('message', async (msg) => {
       return;
     } else {
       const langOffer = botSettings.langOffer;
-      await msg.reply(langOffer);
+      await replyWithTyping(msg, langOffer);
       return;
     }
   }
@@ -173,7 +173,14 @@ client.on('message', async (msg) => {
   // Option 2: Portfolio
   if (messageBody === '2') {
     const text = botSettings.portfolio[state.lang];
-    await msg.reply(text);
+    const imgPath = path.join(__dirname, botSettings.portfolioImage);
+    
+    if (fs.existsSync(imgPath)) {
+      const media = MessageMedia.fromFilePath(imgPath);
+      await replyWithTyping(msg, text, media);
+    } else {
+      await replyWithTyping(msg, text);
+    }
     return;
   }
 
@@ -186,14 +193,14 @@ client.on('message', async (msg) => {
   // Option 4: Contact
   if (messageBody === '4') {
     const text = botSettings.contact[state.lang];
-    await msg.reply(text);
+    await replyWithTyping(msg, text);
     return;
   }
 
   // Option Reset
   if (messageBody === 'reset') {
     customerStates.delete(senderId);
-    await msg.reply(state.lang === 'en' ? "Session reset." : "සැසිය නැවත ආරම්භ කළා.");
+    await replyWithTyping(msg, state.lang === 'en' ? "Session reset." : "සැසිය නැවත ආරම්භ කළා.");
     return;
   }
 
@@ -201,9 +208,21 @@ client.on('message', async (msg) => {
   await sendMainMenu(msg, state.lang);
 });
 
+async function replyWithTyping(msg, text, media = null) {
+  const chat = await msg.getChat();
+  await chat.sendStateTyping();
+  // Simulate reading/thinking time (2-3 seconds)
+  await new Promise(r => setTimeout(r, 2000));
+  
+  if (media) {
+    return await client.sendMessage(msg.from, media, { caption: text });
+  }
+  return await msg.reply(text);
+}
+
 async function sendMainMenu(msg, lang) {
   const text = botSettings.mainMenu[lang];
-  await msg.reply(text);
+  await replyWithTyping(msg, text);
 }
 
 async function sendPackages(msg, lang) {
@@ -211,8 +230,8 @@ async function sendPackages(msg, lang) {
   menuData.forEach(p => {
     text += `🔹 *${p.name}* - LKR ${p.price > 0 ? p.price.toLocaleString() + '+' : 'Consult'}\n   _${p.description}_\n\n`;
   });
-  text += botSettings.packagePrompt[lang];
-  await msg.reply(text);
+  const packagePrompt = botSettings.packagePrompt[lang];
+  await replyWithTyping(msg, packagePrompt);
 
   const imgPath = path.join(__dirname, 'menu.png');
   if (fs.existsSync(imgPath)) {
@@ -228,19 +247,19 @@ async function handleRequirements(msg, state) {
   if (state.step === 'start' || msg.body === '3') {
     state.step = 'ask_type';
     const q = state.lang === 'en' ? "What kind of website do you need?\n(E.g., Blog, Business Profile, E-commerce, Portolio)" : "ඔබට අවශ්‍ය කුමන ආකාරයේ වෙබ් අඩවියක්ද? \n(උදා: බිස්නස්, ඔන්ලයින් ශොප්, පෞද්ගලික)";
-    await msg.reply(q);
+    await replyWithTyping(msg, q);
   } 
   else if (state.step === 'ask_type') {
     state.temp_data = { type: messageBody };
     state.step = 'ask_name';
     const q = state.lang === 'en' ? "Great! What is your Business or Project name?" : "නියමයි! අදාළ ව්‍යාපාරයේ හෝ ව්‍යාපෘතියේ නම කුමක්ද?";
-    await msg.reply(q);
+    await replyWithTyping(msg, q);
   }
   else if (state.step === 'ask_name') {
     state.temp_data.name = messageBody;
     state.step = 'ask_budget';
     const q = state.lang === 'en' ? "What is your estimated budget? (Optional or type a range)" : "ඔබ හිතාගෙන ඉන්නා මිල පරාසය කුමක්ද?";
-    await msg.reply(q);
+    await replyWithTyping(msg, q);
   }
   else if (state.step === 'ask_budget') {
     state.temp_data.budget = messageBody;
@@ -258,7 +277,7 @@ async function handleRequirements(msg, state) {
       ? `✅ *Inquiry Submitted!* (Lead #${info.lastInsertRowid})\n\nThank you, ${customer_name}. I'll review your requirements and reach out very soon.\nPortfolio: ravindushehara.me`
       : `✅ *විමසීම සාර්ථකව යොමු කළා!* (Lead #${info.lastInsertRowid})\n\nස්තූතියි, ${customer_name}. මම ඔබේ අවශ්‍යතා පරීක්ෂා කර ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි.\nravindushehara.me`;
     
-    await msg.reply(success);
+    await replyWithTyping(msg, success);
     io.emit('new_order', { id: info.lastInsertRowid, customer_name, customer_number: senderId, items: desc, total: 0, status: 'New Lead', timestamp: new Date().toISOString() });
     state.step = 'start'; // back to main
   }
