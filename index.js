@@ -50,11 +50,17 @@ const client = new Client({
   puppeteer: {
     headless: true,
     args: [
-      '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-      '--disable-extensions', '--disable-gpu', '--no-first-run', '--no-zygote'
-    ]
+      '--no-sandbox', 
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
+    ],
+    executablePath: '/usr/bin/google-chrome' // This is the path in our Docker image
   },
-  webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1012170010-alpha.html'
+  webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2413.51-beta.html'
 });
 
 const menuData = JSON.parse(fs.readFileSync('menu.json', 'utf8'));
