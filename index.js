@@ -44,6 +44,32 @@ app.post('/api/orders/:id/status', (req, res) => {
   io.emit('order_status_updated', { id, status });
 });
 
+// --- NEW SETTINGS APIs ---
+
+// 1. Get current bot messages
+app.get('/api/settings', (req, res) => {
+  res.json(botSettings);
+});
+
+// 2. Update bot messages
+app.post('/api/settings', (req, res) => {
+  fs.writeFileSync('settings.json', JSON.stringify(req.body, null, 2));
+  reloadSettings();
+  res.json({ success: true });
+});
+
+// 3. Get Package Menu
+app.get('/api/menu', (req, res) => {
+  res.json(menuData);
+});
+
+// 4. Update Package Menu
+app.post('/api/menu', (req, res) => {
+  fs.writeFileSync('menu.json', JSON.stringify(req.body, null, 2));
+  // We can reload menuData globally if needed, or stick to this session
+  res.json({ success: true });
+});
+
 // --- WHATSAPP BOT SETUP ---
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -64,28 +90,52 @@ const client = new Client({
 });
 
 const menuData = JSON.parse(fs.readFileSync('menu.json', 'utf8'));
+let botSettings = JSON.parse(fs.readFileSync('settings.json', 'utf8'));
+
+// Function to reload settings (Called after web update)
+const reloadSettings = () => {
+  botSettings = JSON.parse(fs.readFileSync('settings.json', 'utf8'));
+};
+
 const customerStates = new Map();
 
 client.on('qr', (qr) => {
-  console.log('--- SCAN THE QR CODE ---');
+  console.log('📢 --- NEW QR CODE GENERATED! SCAN NOW ---');
   qrcode.generate(qr, { small: true });
 });
 
-client.on('authenticated', () => console.log('✅ Authenticated!'));
-client.on('ready', () => console.log('🚀 Agent Ravindu Bot is ready!'));
+client.on('authenticated', () => console.log('✅ AUTHENTICATED SUCCESSFULLY!'));
+
+client.on('auth_failure', (msg) => {
+  console.error('❌ AUTHENTICATION FAILURE:', msg);
+});
+
+client.on('ready', () => {
+  console.log('🚀 --- AGENT RAVINDU BOT IS ONLINE & READY! ---');
+});
 
 // --- BOT LOGIC ---
 client.on('message', async (msg) => {
+  console.log(`[${new Date().toLocaleTimeString()}] 📩 NEW MESSAGE FROM ${msg.from}: "${msg.body}"`);
+  
   const chat = await msg.getChat();
 
-  // 🔥 IMPORTANT: Only respond in private chats, ignore all groups!
+  // 🔥 CORE SAFETY GUARDS:
+  // 1. Ignore messages from the bot itself
+  if (msg.fromMe) return;
+
+  // 2. Ignore Status Updates (Stories) and Broadcasts
+  if (msg.isStatus || msg.from === 'status@broadcast') return;
+
+  // 3. Only respond in private chats, ignore all groups!
   if (chat.isGroup) {
+    console.log(`[${new Date().toLocaleTimeString()}] ⏭️ Ignoring group ${chat.name}`);
     return; 
   }
 
   const contact = await msg.getContact();
   const senderId = msg.from;
-  const messageBody = msg.body.toLowerCase().trim();
+  const messageBody = (msg.body || "").toLowerCase().trim();
 
   let state = customerStates.get(senderId) || { lang: null, step: 'start' };
 
@@ -102,7 +152,7 @@ client.on('message', async (msg) => {
       await sendMainMenu(msg, 'si');
       return;
     } else {
-      const langOffer = `👋 *Welcome! I'm the Virtual Assistant for Ravindu Shehara (ravindushehara.me)*\n\nPlease select your preferred language:\n\n1. English\n2. Sinhala (සිංහල)`;
+      const langOffer = botSettings.langOffer;
       await msg.reply(langOffer);
       return;
     }
@@ -122,9 +172,7 @@ client.on('message', async (msg) => {
 
   // Option 2: Portfolio
   if (messageBody === '2') {
-    const text = state.lang === 'en' 
-      ? `💻 *Portfolio & Projects*:\nVisit my official portfolio: https://ravindushehara.me\n\nYou can see my latest works and skills there!`
-      : `💻 *කළ නිර්මාණ*: \nඅපගේ නිල වෙබ් අඩවියට පිවිසෙන්න: https://ravindushehara.me\n\nඔබට මෙහිදී අප කළ නිර්මාණ දැකගත හැකිය.`;
+    const text = botSettings.portfolio[state.lang];
     await msg.reply(text);
     return;
   }
@@ -137,9 +185,7 @@ client.on('message', async (msg) => {
 
   // Option 4: Contact
   if (messageBody === '4') {
-    const text = state.lang === 'en'
-      ? `📞 *Contact Info*:\nEmail: hi@ravindushehara.me\nWeb: ravindushehara.me\nOr feel free to leave a message here, I'll get back to you personally!`
-      : `📞 *සම්බන්ධ කර ගැනීමට*:\nEmail: hi@ravindushehara.me\nWeb: ravindushehara.me\nකරුණාකර මෙහි පණිවිඩයක් තබන්න, මම ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි!`;
+    const text = botSettings.contact[state.lang];
     await msg.reply(text);
     return;
   }
@@ -156,9 +202,7 @@ client.on('message', async (msg) => {
 });
 
 async function sendMainMenu(msg, lang) {
-  const text = lang === 'en'
-    ? `👋 *Hi, I'm Ravindu Shehara's Web Agent*\nOwner of ravindushehara.me\n\nHow can we build your web presence today?\n\n1. 📜 View Packages & Pricing\n2. 💻 View My Portfolio\n3. 🚀 Get a Custom Quote\n4. 📞 Contact Info\n\n*Type the number of your choice (e.g., 1).*`
-    : `👋 *ආයුබෝවන්, මම රවිඳු ෂෙහාරාගේ වෙබ් සහායක*\nravindushehara.me නියෝජිතයා\n\nඅද ඔබේ ව්‍යාපාරික වෙබ් අඩවිය අපි නිර්මාණය කරමුද?\n\n1. 📜 මිල ගණන් සහ පැකේජ බලන්න\n2. 💻 පසුගිය නිර්මාණ (Portfolio)\n3. 🚀 නව වෙබ් අඩවියක් සඳහා විමසීම්\n4. 📞 සම්බන්ධ වීමට\n\n*පිළිතුරේ අංකය ටයිප් කරන්න (උදා: 1).*`;
+  const text = botSettings.mainMenu[lang];
   await msg.reply(text);
 }
 
@@ -167,7 +211,7 @@ async function sendPackages(msg, lang) {
   menuData.forEach(p => {
     text += `🔹 *${p.name}* - LKR ${p.price > 0 ? p.price.toLocaleString() + '+' : 'Consult'}\n   _${p.description}_\n\n`;
   });
-  text += lang === 'en' ? `*Type 3* if you want to start a custom inquiry!` : `නව විමසීමක් ආරම්භ කිරීමට *3* ටයිප් කරන්න!`;
+  text += botSettings.packagePrompt[lang];
   await msg.reply(text);
 
   const imgPath = path.join(__dirname, 'menu.png');

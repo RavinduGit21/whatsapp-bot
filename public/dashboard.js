@@ -126,6 +126,77 @@ window.addEventListener('load', () => {
             const tabId = item.getAttribute('data-tab');
             document.getElementById(`${tabId}-tab`).classList.add('active');
             document.getElementById('top-title').innerText = item.innerText;
+
+            if (tabId === 'settings') {
+                fetchSettings();
+            }
         });
     });
+});
+
+// --- SETTINGS MANAGEMENT ---
+
+async function fetchSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        
+        document.getElementById('set-langOffer').value = settings.langOffer;
+        
+        // English
+        document.getElementById('set-mainMenu-en').value = settings.mainMenu.en;
+        document.getElementById('set-portfolio-en').value = settings.portfolio.en;
+        document.getElementById('set-contact-en').value = settings.contact.en;
+        document.getElementById('set-packagePrompt-en').value = settings.packagePrompt.en;
+        
+        // Sinhala
+        document.getElementById('set-mainMenu-si').value = settings.mainMenu.si;
+        document.getElementById('set-portfolio-si').value = settings.portfolio.si;
+        document.getElementById('set-contact-si').value = settings.contact.si;
+        document.getElementById('set-packagePrompt-si').value = settings.packagePrompt.si;
+        
+    } catch (err) {
+        console.error('Error fetching settings:', err);
+    }
+}
+
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const settings = {
+        langOffer: document.getElementById('set-langOffer').value,
+        mainMenu: {
+            en: document.getElementById('set-mainMenu-en').value,
+            si: document.getElementById('set-mainMenu-si').value
+        },
+        portfolio: {
+            en: document.getElementById('set-portfolio-en').value,
+            si: document.getElementById('set-portfolio-si').value
+        },
+        contact: {
+            en: document.getElementById('set-contact-en').value,
+            si: document.getElementById('set-contact-si').value
+        },
+        packagePrompt: {
+            en: document.getElementById('set-packagePrompt-en').value,
+            si: document.getElementById('set-packagePrompt-si').value
+        }
+    };
+
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        
+        if (response.ok) {
+            alert('✅ Bot settings saved and reloaded successfully!');
+        } else {
+            alert('❌ Failed to save settings.');
+        }
+    } catch (err) {
+        console.error('Error saving settings:', err);
+        alert('❌ Error saving settings. Check console.');
+    }
 });

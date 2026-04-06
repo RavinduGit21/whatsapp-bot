@@ -1,0 +1,19 @@
+{
+  "langOffer": "👋 *Welcome! I'm the Virtual Assistant for Ravindu Shehara (ravindushehara.me)*\n\nPlease select your preferred language:\n\n1. English\n2. Sinhala (සිංහල)",
+  "mainMenu": {
+    "en": "👋 *Hi, I'm Ravindu Shehara's Web Agent*\nOwner of ravindushehara.me\n\nHow can we build your web presence today?\n\n1. 📜 View Packages & Pricing\n2. 💻 View My Portfolio\n3. 🚀 Get a Custom Quote\n4. 📞 Contact Info\n\n*Type the number of your choice (e.g., 1).*",
+    "si": "👋 *ආයුබෝවන්, මම රවිඳු ෂෙහාරාගේ වෙබ් සහායක*\nravindushehara.me නියෝජිතයා\n\nඅද ඔබේ ව්‍යාපාරික වෙබ් අඩවිය අපි නිර්මාණය කරමුද?\n\n1. 📜 මිල ගණන් සහ පැකේජ බලන්න\n2. 💻 පසුගිය නිර්මාණ (Portfolio)\n3. 🚀 නව වෙබ් අඩවියක් සඳහා විමසීම්\n4. 📞 සම්බන්ධ වීමට\n\n*පිළිතුරේ අංකය ටයිප් කරන්න (උදා: 1).*"
+  },
+  "portfolio": {
+    "en": "💻 *Portfolio & Projects*:\nVisit my official portfolio: https://ravindushehara.me\n\nYou can see my latest works and skills there!",
+    "si": "💻 *කළ නිර්මාණ*: \nඅපගේ නිල වෙබ් අඩවියට පිවිසෙන්න: https://ravindushehara.me\n\nඔබට මෙහිදී අප කළ නිර්මාණ දැකගත හැකිය."
+  },
+  "contact": {
+    "en": "📞 *Contact Info*:\nEmail: hi@ravindushehara.me\nWeb: ravindushehara.me\nOr feel free to leave a message here, I'll get back to you personally!",
+    "si": "📞 *සම්බන්ධ කර ගැනීමට*:\nEmail: hi@ravindushehara.me\nWeb: ravindushehara.me\nකරුණාකර මෙහි පණිවිඩයක් තබන්න, මම ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි!"
+  },
+  "packagePrompt": {
+    "en": "*Type 3* if you want to start a custom inquiry!",
+    "si": "නව විමසීමක් ආරම්භ කිරීමට *3* ටයිප් කරන්න!"
+  }
+}

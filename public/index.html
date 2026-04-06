@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Bot Admin Dashboard</title>
+    <title>Ravindu Dev Agency - Leads Control</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -28,6 +28,10 @@
                     <span class="nav-icon">📜</span>
                     <span>Service Editor</span>
                 </div>
+                <div class="nav-item" data-tab="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Bot Settings</span>
+                </div>
             </nav>
             <div class="bot-status online">
                 <span class="status-indicator"></span>
@@ -38,8 +42,8 @@
         <main class="content">
             <header>
                 <div class="header-left">
-                    <h2 id="top-title">Live Orders</h2>
-                    <p id="top-subtitle">Real-time updates from your customers</p>
+                    <h2 id="top-title">Live Agency Leads</h2>
+                    <p id="top-subtitle">Real-time project inquiries from your clients</p>
                 </div>
                 <div class="header-right">
                     <div class="search-bar">
@@ -77,10 +81,61 @@
                 </div>
             </div>
 
-            <div id="menu-tab" class="tab-content">
-                <div class="placeholder-content">
-                    <h3>Menu Management</h3>
-                    <p>Edit your menu items and prices in real-time.</p>
+            <div id="settings-tab" class="tab-content">
+                <div class="settings-container">
+                    <h3>Auto-Response Settings</h3>
+                    <p>Edit the messages your bot sends to customers.</p>
+                    
+                    <form id="settings-form">
+                        <div class="form-group">
+                            <label>Language Offer Message</label>
+                            <textarea id="set-langOffer" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="settings-grid">
+                            <div class="lang-section">
+                                <h4>English Messages</h4>
+                                <div class="form-group">
+                                    <label>Main Menu (EN)</label>
+                                    <textarea id="set-mainMenu-en" rows="6"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Portfolio Message (EN)</label>
+                                    <textarea id="set-portfolio-en" rows="4"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Contact Info (EN)</label>
+                                    <textarea id="set-contact-en" rows="4"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Package Prompt (EN)</label>
+                                    <textarea id="set-packagePrompt-en" rows="2"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="lang-section">
+                                <h4>Sinhala Messages (සිංහල)</h4>
+                                <div class="form-group">
+                                    <label>Main Menu (SI)</label>
+                                    <textarea id="set-mainMenu-si" rows="6"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Portfolio Message (SI)</label>
+                                    <textarea id="set-portfolio-si" rows="4"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Contact Info (SI)</label>
+                                    <textarea id="set-contact-si" rows="4"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Package Prompt (SI)</label>
+                                    <textarea id="set-packagePrompt-si" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-save">Save Bot Settings</button>
+                    </form>
                 </div>
             </div>
         </main>
@@ -90,7 +145,7 @@
     <div id="order-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2>Order Details</h2>
+            <h2>Lead Details</h2>
             <div id="modal-body"></div>
         </div>
     </div>
