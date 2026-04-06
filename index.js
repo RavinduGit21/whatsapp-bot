@@ -175,14 +175,18 @@ client.on('message', async (msg) => {
   // Option 2: Portfolio
   if (messageBody === '2') {
     const text = botSettings.portfolio[state.lang];
-    const imgPath = path.join(__dirname, botSettings.portfolioImage);
+    const imageKey = botSettings.portfolioImage;
     
-    if (fs.existsSync(imgPath)) {
-      const media = MessageMedia.fromFilePath(imgPath);
-      await replyWithTyping(msg, text, media);
-    } else {
-      await replyWithTyping(msg, text);
+    if (imageKey) {
+      const imgPath = path.join(__dirname, imageKey);
+      if (fs.existsSync(imgPath)) {
+        const media = MessageMedia.fromFilePath(imgPath);
+        await replyWithTyping(msg, text, media);
+        return;
+      }
     }
+    
+    await replyWithTyping(msg, text);
     return;
   }
 
