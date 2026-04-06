@@ -56,10 +56,15 @@ const client = new Client({
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--disable-gpu'
-    ]
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-setuid-sandbox',
+      '--js-flags="--max-old-space-size=400"' // Force JS to stay under 400MB
+    ],
+    headless: true
   },
-  webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2413.51-beta.html'
+  // Using a very stable version for cloud environments
+  webVersionRemote: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1012170010-alpha.html'
 });
 
 const menuData = JSON.parse(fs.readFileSync('menu.json', 'utf8'));
