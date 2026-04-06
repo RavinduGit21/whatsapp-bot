@@ -7,6 +7,7 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const googleTTS = require('google-tts-api'); // --- NEW VOICE ENGINE ---
 
 // --- DATABASE SETUP ---
 const db = new Database('orders.db');
@@ -114,6 +115,26 @@ client.on('ready', () => {
   console.log('🚀 --- AGENT RAVINDU BOT IS ONLINE & READY! ---');
 });
 
+// --- CALL HANDLER (Reject calls & Auto-reply) ---
+client.on('call', async (call) => {
+  console.log(`[${new Date().toLocaleTimeString()}] 📞 REJECTED CALL FROM ${call.from}`);
+  
+  // 1. Reject the call professionally
+  await call.reject();
+
+  // 2. Send a polite auto-reply in both languages
+  const callReply = `⚠️ *Automatic System Message* ⚠️
+
+*EN:* I am an AI Assistant and cannot answer voice calls. Please use the menu below to chat with me.
+
+*SI:* මම AI සහායකයෙක් බැවින් ඇමතුම් වලට පිළිතුරු දිය නොහැක. කරුණාකර පහත මෙනුව භාවිතා කර මා සමග චැට් කරන්න. 
+
+---
+*Type '0' to see the Main Menu.*`;
+
+  await client.sendMessage(call.from, callReply);
+});
+
 // --- BOT LOGIC ---
 client.on('message', async (msg) => {
   console.log(`[${new Date().toLocaleTimeString()}] 📩 NEW MESSAGE FROM ${msg.from}: "${msg.body}"`);
@@ -214,14 +235,44 @@ client.on('message', async (msg) => {
 
 async function replyWithTyping(msg, text, media = null) {
   const chat = await msg.getChat();
+  const contact = await msg.getContact();
+  const senderId = msg.from;
+  let state = customerStates.get(senderId) || { lang: 'en' }; // Default to 'en'
+
   await chat.sendStateTyping();
-  // Simulate reading/thinking time (2-3 seconds)
+  // Simulate writing/thinking delay
   await new Promise(r => setTimeout(r, 2000));
   
+  // 1. Send the Text/Media Message
+  let sentMsg;
   if (media) {
-    return await client.sendMessage(msg.from, media, { caption: text });
+    sentMsg = await client.sendMessage(msg.from, media, { caption: text });
+  } else {
+    sentMsg = await msg.reply(text);
   }
-  return await msg.reply(text);
+
+  // 2. --- NEW: Send the Sinhala/English Voice Note (Voice AI) ---
+  try {
+    // Only speak the first 200 characters to prevent errors
+    const shortText = text.length > 200 ? text.substring(0, 197) + "..." : text;
+    const url = googleTTS.getAudioUrl(shortText, {
+      lang: state.lang || 'en', // 'si' for Sinhala, 'en' for English
+      slow: false,
+      host: 'https://translate.google.com',
+    });
+
+    const voiceMedia = await MessageMedia.fromUrl(url, { unsafeMime: true });
+    
+    // We send it as a real "Voice Note" (Push to talk icon)
+    await client.sendMessage(msg.from, voiceMedia, { 
+      sendAudioAsVoice: true 
+    });
+    console.log(`[Voice AI] Sent ${state.lang} voice note to ${msg.from}`);
+  } catch (err) {
+    console.error('❌ Voice AI Error:', err.message);
+  }
+
+  return sentMsg;
 }
 
 async function sendMainMenu(msg, lang) {
