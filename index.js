@@ -241,8 +241,19 @@ client.on('message', async (msg) => {
     return;
   }
 
-  // Default Fallback
-  await sendMainMenu(msg, state.lang);
+  // --- ELITE: Gemini AI Smart Chat (Handles anything else) ---
+  try {
+    console.log(`[GEMINI] Thinking of answer for: "${msg.body}"`);
+    const prompt = `The user is at step: ${state.step || 'General Chat'}. They said: "${msg.body}". Help them and keep representing Ravindu Shehara Agency.`;
+    
+    const result = await model.generateContent(prompt);
+    const aiResponse = result.response.text();
+    
+    await replyWithTyping(msg, aiResponse);
+  } catch (err) {
+    console.error('❌ Gemini Error:', err.message);
+    await sendMainMenu(msg, state.lang);
+  }
 });
 
 async function replyWithTyping(msg, text, media = null) {
