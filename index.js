@@ -86,16 +86,21 @@ const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    protocolTimeout: 120000, // 2 minutes (Extreme stability for AWS)
+    protocolTimeout: 120000,
     args: [
-      '--no-sandbox', 
+      '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--no-zygote',
       '--single-process',
       '--disable-extensions',
-      '--disable-notifications'
+      '--disable-notifications',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--no-first-run',
+      '--ignore-certificate-errors'
     ]
   }
 });
@@ -123,6 +128,16 @@ client.on('auth_failure', (msg) => {
 
 client.on('ready', () => {
   console.log('🚀 --- AGENT RAVINDU BOT IS ONLINE & READY! ---');
+});
+
+// 🔥 AUTO-RECONNECT: If disconnected, reinitialize automatically!
+client.on('disconnected', (reason) => {
+  console.log('⚠️ Bot disconnected:', reason);
+  console.log('🔄 Auto-reconnecting in 5 seconds...');
+  setTimeout(() => {
+    client.initialize();
+    console.log('🔄 Reconnecting...');
+  }, 5000);
 });
 
 // --- CALL HANDLER (Reject calls & Auto-reply) ---
