@@ -86,14 +86,14 @@ const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    protocolTimeout: 120000,
+    protocolTimeout: 300000, // ⬆️ 5 minutes (fixes ProtocolError timeout!)
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--no-zygote',
-      '--single-process',
+      // '--single-process' REMOVED - causes instability on AWS! 🛡️
       '--disable-extensions',
       '--disable-notifications',
       '--disable-background-timer-throttling',
