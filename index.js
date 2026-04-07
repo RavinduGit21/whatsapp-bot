@@ -7,7 +7,19 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const googleTTS = require('google-tts-api'); // --- NEW VOICE ENGINE ---
+const { GoogleGenerativeAI } = require('@google/generative-ai'); // --- NEW AI BRAIN ---
+const axios = require('axios'); // For Professional Voice API
+
+// --- API KEYS ---
+const GEMINI_API_KEY = 'AIzaSyD9Hplr1mkCpDFyV67pz43ndaels1epWYc';
+const GOOGLE_CLOUD_KEY = 'AIzaSyCxVfltS9jIMg4zXdZMBlaiUQKriMaMW4s';
+
+// --- AI BRAIN SETUP ---
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ 
+  model: 'gemini-1.5-flash',
+  systemInstruction: 'You are the Elite Virtual Assistant for Ravindu Sheharas Web Development Agency. Your goal is to capture leads and help customers choose the right web package. You speak both English and Sinhala (especially Sinhala). You should be professional, friendly, and lively. Encourage users to view packages and portfolio.'
+});
 
 // --- DATABASE SETUP ---
 const db = new Database('orders.db');
@@ -237,11 +249,11 @@ async function replyWithTyping(msg, text, media = null) {
   const chat = await msg.getChat();
   const contact = await msg.getContact();
   const senderId = msg.from;
-  let state = customerStates.get(senderId) || { lang: 'en' }; // Default to 'en'
+  let state = customerStates.get(senderId) || { lang: 'en' };
 
   await chat.sendStateTyping();
-  // Simulate writing/thinking delay
-  await new Promise(r => setTimeout(r, 2000));
+  // Realistic writing delay (3 seconds for "Human" feel)
+  await new Promise(r => setTimeout(r, 3000));
   
   // 1. Send the Text/Media Message
   let sentMsg;
@@ -251,25 +263,30 @@ async function replyWithTyping(msg, text, media = null) {
     sentMsg = await msg.reply(text);
   }
 
-  // 2. --- NEW: Send the Sinhala/English Voice Note (Voice AI) ---
+  // 2. --- ELITE: Send the Professional AI Voice (Wavenet/Neural2) ---
   try {
-    // Only speak the first 200 characters to prevent errors
-    const shortText = text.length > 200 ? text.substring(0, 197) + "..." : text;
-    const url = googleTTS.getAudioUrl(shortText, {
-      lang: state.lang || 'en', // 'si' for Sinhala, 'en' for English
-      slow: false,
-      host: 'https://translate.google.com',
-    });
+    const ttsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_KEY}`;
+    const payload = {
+      input: { text: text },
+      voice: { 
+        languageCode: state.lang === 'si' ? 'si-LK' : 'en-US',
+        name: state.lang === 'si' ? 'si-LK-Standard-A' : 'en-US-Neural2-H' // Neural2 is the best human voice!
+      },
+      audioConfig: { audioEncoding: 'MP3' }
+    };
 
-    const voiceMedia = await MessageMedia.fromUrl(url, { unsafeMime: true });
+    const response = await axios.post(ttsUrl, payload);
+    const audioBase64 = response.data.audioContent;
     
-    // We send it as a real "Voice Note" (Push to talk icon)
+    const voiceMedia = new MessageMedia('audio/mp3', audioBase64, 'voice.mp3');
+    
+    // Send as a genuine "Human" voice note (green mic icon)
     await client.sendMessage(msg.from, voiceMedia, { 
       sendAudioAsVoice: true 
     });
-    console.log(`[Voice AI] Sent ${state.lang} voice note to ${msg.from}`);
+    console.log(`[ELITE VOICE] Sent ${state.lang} Professional voice to ${msg.from}`);
   } catch (err) {
-    console.error('❌ Voice AI Error:', err.message);
+    console.error('❌ Elite Voice Error:', err.response?.data || err.message);
   }
 
   return sentMsg;
