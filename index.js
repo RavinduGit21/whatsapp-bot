@@ -281,7 +281,7 @@ async function replyWithTyping(msg, text, media = null) {
       input: { text: text },
       voice: { 
         languageCode: state.lang === 'si' ? 'si-LK' : 'en-US',
-        name: state.lang === 'si' ? 'si-LK-Standard-A' : 'en-US-Neural2-H' // Neural2 is the best human voice!
+        ssmlGender: 'FEMALE' // Use standard female voice for a friendly assistant
       },
       audioConfig: { audioEncoding: 'MP3' }
     };
