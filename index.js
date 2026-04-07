@@ -3,7 +3,7 @@ const qrcode = require('qrcode-terminal');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const Database = require('better-sqlite3');
+// const Database = require('better-sqlite3'); // REMOVED BINARY 🛡️
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
@@ -21,19 +21,17 @@ const model = genAI.getGenerativeModel({
   systemInstruction: 'You are the Elite Virtual Assistant for Ravindu Sheharas Web Development Agency. Your goal is to capture leads and help customers choose the right web package. You speak both English and Sinhala (especially Sinhala). You should be professional, friendly, and lively. Encourage users to view packages and portfolio.'
 });
 
-// --- DATABASE SETUP ---
-const db = new Database('orders.db');
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_name TEXT,
-    customer_number TEXT,
-    items TEXT,
-    total DECIMAL(10, 2),
-    status TEXT DEFAULT 'New Lead',
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
+// --- STABLE DATABASE SETUP (Binary-Free 🛡️) ---
+const ordersFile = 'orders.json';
+if (!fs.existsSync(ordersFile)) fs.writeFileSync(ordersFile, JSON.stringify([], null, 2));
+
+function getOrders() {
+  return JSON.parse(fs.readFileSync(ordersFile, 'utf8'));
+}
+
+function saveOrders(orders) {
+  fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2));
+}
 
 // --- EXPRESS SETUP ---
 const app = express();
@@ -45,16 +43,26 @@ app.use(express.json());
 app.use(express.static('public'));
 
 app.get('/api/orders', (req, res) => {
-  const orders = db.prepare('SELECT * FROM orders ORDER BY timestamp DESC').all();
+  const orders = getOrders();
+  // Sort by newest first
+  orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   res.json(orders);
 });
 
 app.post('/api/orders/:id/status', (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, id);
-  res.json({ success: true });
-  io.emit('order_status_updated', { id, status });
+  
+  const orders = getOrders();
+  const orderIndex = orders.findIndex(o => o.id == id);
+  if (orderIndex > -1) {
+    orders[orderIndex].status = status;
+    saveOrders(orders);
+    io.emit('order_status_updated', { id, status });
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
 });
 
 // --- NEW SETTINGS APIs ---
@@ -352,16 +360,28 @@ async function handleRequirements(msg, state) {
     const customer_name = contact.pushname || 'Client';
     const desc = `Web Lead: ${state.temp_data.type} for ${state.temp_data.name}. Budget: ${state.temp_data.budget}`;
     
-    // Save as Inquiry in DB
-    const stmt = db.prepare('INSERT INTO orders (customer_name, customer_number, items, total) VALUES (?, ?, ?, 0)');
-    const info = stmt.run(customer_name, senderId, desc);
+    // Save as Inquiry in JSON (Binary-Free) 🛡️
+    const orders = getOrders();
+    const newId = Date.now(); // Unique ID using timestamp
+    const newOrder = {
+      id: newId,
+      customer_name,
+      customer_number: senderId,
+      items: desc,
+      total: 0,
+      status: 'New Lead',
+      timestamp: new Date().toISOString()
+    };
+    
+    orders.push(newOrder);
+    saveOrders(orders);
 
     const success = state.lang === 'en' 
-      ? `✅ *Inquiry Submitted!* (Lead #${info.lastInsertRowid})\n\nThank you, ${customer_name}. I'll review your requirements and reach out very soon.\nPortfolio: ravindushehara.me`
-      : `✅ *විමසීම සාර්ථකව යොමු කළා!* (Lead #${info.lastInsertRowid})\n\nස්තූතියි, ${customer_name}. මම ඔබේ අවශ්‍යතා පරීක්ෂා කර ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි.\nravindushehara.me`;
+      ? `✅ *Inquiry Submitted!* (Lead #${newId})\n\nThank you, ${customer_name}. I'll review your requirements and reach out very soon.\nPortfolio: ravindushehara.me`
+      : `✅ *විමසීම සාර්ථකව යොමු කළා!* (Lead #${newId})\n\nස්තූතියි, ${customer_name}. මම ඔබේ අවශ්‍යතා පරීක්ෂා කර ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි.\nravindushehara.me`;
     
     await replyWithTyping(msg, success);
-    io.emit('new_order', { id: info.lastInsertRowid, customer_name, customer_number: senderId, items: desc, total: 0, status: 'New Lead', timestamp: new Date().toISOString() });
+    io.emit('new_order', newOrder);
     state.step = 'start'; // back to main
   }
   customerStates.set(senderId, state);
