@@ -7,19 +7,9 @@ const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai'); // --- NEW AI BRAIN ---
-const axios = require('axios'); // For Professional Voice API
+// No API Keys Required 🛡️
 
-// --- API KEYS ---
-const GEMINI_API_KEY = 'AIzaSyD9Hplr1mkCpDFyV67pz43ndaels1epWYc';
-const GOOGLE_CLOUD_KEY = 'AIzaSyCxVfltS9jIMg4zXdZMBlaiUQKriMaMW4s';
-
-// --- AI BRAIN SETUP ---
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-  model: 'gemini-1.5-flash',
-  systemInstruction: 'You are the Elite Virtual Assistant for Ravindu Sheharas Web Development Agency. Your goal is to capture leads and help customers choose the right web package. You speak both English and Sinhala (especially Sinhala). You should be professional, friendly, and lively. Encourage users to view packages and portfolio.'
-});
+// --- NO AI ENGINE SETUP (Using Simple Menu Mode) ---
 
 // --- STABLE DATABASE SETUP (Binary-Free 🛡️) ---
 const ordersFile = 'orders.json';
@@ -249,19 +239,8 @@ client.on('message', async (msg) => {
     return;
   }
 
-  // --- ELITE: Gemini AI Smart Chat (Handles anything else) ---
-  try {
-    console.log(`[GEMINI] Thinking of answer for: "${msg.body}"`);
-    const prompt = `The user is at step: ${state.step || 'General Chat'}. They said: "${msg.body}". Help them and keep representing Ravindu Shehara Agency.`;
-    
-    const result = await model.generateContent(prompt);
-    const aiResponse = result.response.text();
-    
-    await replyWithTyping(msg, aiResponse);
-  } catch (err) {
-    console.error('❌ Gemini Error:', err.message);
-    await sendMainMenu(msg, state.lang);
-  }
+  // --- SIMPLE MENU MODE ---
+  await sendMainMenu(msg, state.lang);
 });
 
 async function replyWithTyping(msg, text, media = null) {
