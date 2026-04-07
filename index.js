@@ -147,19 +147,29 @@ client.on('call', async (call) => {
 
 // --- BOT LOGIC ---
 client.on('message', async (msg) => {
-  // 🔥 CRASH GUARD: Ignore Newsletters, Status, and Groups immediately
-  if (msg.from.includes('@newsletter') || msg.isStatus) return;
-
   try {
-    const chat = await msg.getChat();
-    
-    console.log(`[${new Date().toLocaleTimeString()}] 📩 NEW MESSAGE FROM ${msg.from}: "${msg.body}"`);
-
-    // 1. Ignore messages from the bot itself
+    // 🔥 ULTRA CRASH GUARD: Block ALL non-private messages immediately
+    if (!msg || !msg.from) return;
     if (msg.fromMe) return;
+    if (msg.isStatus) return;
+    if (msg.from === 'status@broadcast') return;
+    if (msg.from.includes('@newsletter')) return;
+    if (msg.from.includes('@broadcast')) return;
+    if (msg.type === 'e2e_notification') return;
 
-    // 2. Only respond in private chats, ignore all groups!
-    if (chat.isGroup) return;
+    // Safely get chat with its own error handler
+    let chat;
+    try {
+      chat = await msg.getChat();
+    } catch (chatErr) {
+      console.log(`[GUARD] Skipped unsupported message type from ${msg.from}`);
+      return; // Safely ignore and keep bot running!
+    }
+
+    // Only respond in private chats, ignore all groups!
+    if (!chat || chat.isGroup) return;
+
+    console.log(`[${new Date().toLocaleTimeString()}] 📩 MSG FROM ${msg.from}: "${msg.body}"`);
 
     const contact = await msg.getContact();
   const senderId = msg.from;
