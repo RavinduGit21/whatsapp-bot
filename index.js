@@ -147,24 +147,21 @@ client.on('call', async (call) => {
 
 // --- BOT LOGIC ---
 client.on('message', async (msg) => {
-  console.log(`[${new Date().toLocaleTimeString()}] 📩 NEW MESSAGE FROM ${msg.from}: "${msg.body}"`);
-  
-  const chat = await msg.getChat();
+  // 🔥 CRASH GUARD: Ignore Newsletters, Status, and Groups immediately
+  if (msg.from.includes('@newsletter') || msg.isStatus) return;
 
-  // 🔥 CORE SAFETY GUARDS:
-  // 1. Ignore messages from the bot itself
-  if (msg.fromMe) return;
+  try {
+    const chat = await msg.getChat();
+    
+    console.log(`[${new Date().toLocaleTimeString()}] 📩 NEW MESSAGE FROM ${msg.from}: "${msg.body}"`);
 
-  // 2. Ignore Status Updates (Stories) and Broadcasts
-  if (msg.isStatus || msg.from === 'status@broadcast') return;
+    // 1. Ignore messages from the bot itself
+    if (msg.fromMe) return;
 
-  // 3. Only respond in private chats, ignore all groups!
-  if (chat.isGroup) {
-    console.log(`[${new Date().toLocaleTimeString()}] ⏭️ Ignoring group ${chat.name}`);
-    return; 
-  }
+    // 2. Only respond in private chats, ignore all groups!
+    if (chat.isGroup) return;
 
-  const contact = await msg.getContact();
+    const contact = await msg.getContact();
   const senderId = msg.from;
   const messageBody = (msg.body || "").toLowerCase().trim();
 
@@ -241,6 +238,9 @@ client.on('message', async (msg) => {
 
   // --- SIMPLE MENU MODE ---
   await sendMainMenu(msg, state.lang);
+  } catch (err) {
+    console.error(`[CRASH GUARD] Error in message handler:`, err.message);
+  }
 });
 
 async function replyWithTyping(msg, text, media = null) {
