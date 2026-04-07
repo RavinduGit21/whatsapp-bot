@@ -282,40 +282,6 @@ async function replyWithTyping(msg, text, media = null) {
     sentMsg = await msg.reply(text);
   }
 
-  // 2. --- ELITE: Send the Professional AI Voice (Neural Engine) ---
-  try {
-    // 🔥 AUTO-DETECTION: If text contains Sinhala characters, use Sinhala voice!
-    const isSinhala = /[\u0D80-\u0DFF]/.test(text);
-    const langCode = isSinhala ? 'si-LK' : 'en-US';
-
-    const ttsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_KEY}`;
-    const payload = {
-      input: { text: text },
-      voice: { 
-        languageCode: langCode,
-        ssmlGender: 'FEMALE'
-      },
-      audioConfig: { 
-        audioEncoding: 'MP3',
-        pitch: -1.0, // Warmer, more human tone
-        speakingRate: 1.05 // Natural conversational speed
-      }
-    };
-
-    const response = await axios.post(ttsUrl, payload);
-    const audioBase64 = response.data.audioContent;
-    
-    const voiceMedia = new MessageMedia('audio/mp3', audioBase64, 'voice.mp3');
-    
-    // Send as a genuine "Human" voice note (green mic icon)
-    await client.sendMessage(msg.from, voiceMedia, { 
-      sendAudioAsVoice: true 
-    });
-    console.log(`[ELITE VOICE] Sent ${langCode} Professional voice to ${msg.from}`);
-  } catch (err) {
-    console.error('❌ Elite Voice Error:', err.response?.data || err.message);
-  }
-
   return sentMsg;
 }
 
