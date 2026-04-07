@@ -1,15 +1,13 @@
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-// const Database = require('better-sqlite3'); // REMOVED BINARY 🛡️
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-// No API Keys Required 🛡️
-
-// --- NO AI ENGINE SETUP (Using Simple Menu Mode) ---
+const pino = require('pino');
 
 // --- STABLE DATABASE SETUP (Binary-Free 🛡️) ---
 const ordersFile = 'orders.json';
@@ -23,7 +21,7 @@ function saveOrders(orders) {
   fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2));
 }
 
-// --- EXPRESS SETUP ---
+// --- EXPRESS DASHBOARD SETUP ---
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -34,7 +32,6 @@ app.use(express.static('public'));
 
 app.get('/api/orders', (req, res) => {
   const orders = getOrders();
-  // Sort by newest first
   orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   res.json(orders);
 });
@@ -42,7 +39,6 @@ app.get('/api/orders', (req, res) => {
 app.post('/api/orders/:id/status', (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  
   const orders = getOrders();
   const orderIndex = orders.findIndex(o => o.id == id);
   if (orderIndex > -1) {
@@ -55,318 +51,247 @@ app.post('/api/orders/:id/status', (req, res) => {
   }
 });
 
-// --- NEW SETTINGS APIs ---
-
-// 1. Get current bot messages
-app.get('/api/settings', (req, res) => {
-  res.json(botSettings);
-});
-
-// 2. Update bot messages
+app.get('/api/settings', (req, res) => res.json(botSettings));
 app.post('/api/settings', (req, res) => {
   fs.writeFileSync('settings.json', JSON.stringify(req.body, null, 2));
   reloadSettings();
   res.json({ success: true });
 });
 
-// 3. Get Package Menu
-app.get('/api/menu', (req, res) => {
-  res.json(menuData);
-});
-
-// 4. Update Package Menu
+app.get('/api/menu', (req, res) => res.json(menuData));
 app.post('/api/menu', (req, res) => {
   fs.writeFileSync('menu.json', JSON.stringify(req.body, null, 2));
-  // We can reload menuData globally if needed, or stick to this session
   res.json({ success: true });
 });
 
-// --- WHATSAPP BOT SETUP ---
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    protocolTimeout: 300000, // ⬆️ 5 minutes (fixes ProtocolError timeout!)
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      // '--single-process' REMOVED - causes instability on AWS! 🛡️
-      '--disable-extensions',
-      '--disable-notifications',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--no-first-run',
-      '--ignore-certificate-errors'
-    ]
-  }
-});
-
+// --- BOT DATA ---
 const menuData = JSON.parse(fs.readFileSync('menu.json', 'utf8'));
 let botSettings = JSON.parse(fs.readFileSync('settings.json', 'utf8'));
-
-// Function to reload settings (Called after web update)
 const reloadSettings = () => {
   botSettings = JSON.parse(fs.readFileSync('settings.json', 'utf8'));
 };
-
 const customerStates = new Map();
 
-client.on('qr', (qr) => {
-  console.log('📢 --- NEW QR CODE GENERATED! SCAN NOW ---');
-  qrcode.generate(qr, { small: true });
-});
+// --- BAILEYS BOT (No Chrome! 🛡️) ---
+let sock;
 
-client.on('authenticated', () => console.log('✅ AUTHENTICATED SUCCESSFULLY!'));
-
-client.on('auth_failure', (msg) => {
-  console.error('❌ AUTHENTICATION FAILURE:', msg);
-});
-
-client.on('ready', () => {
-  console.log('🚀 --- AGENT RAVINDU BOT IS ONLINE & READY! ---');
-});
-
-// 🔥 AUTO-RECONNECT: If disconnected, reinitialize automatically!
-client.on('disconnected', (reason) => {
-  console.log('⚠️ Bot disconnected:', reason);
-  console.log('🔄 Auto-reconnecting in 5 seconds...');
-  setTimeout(() => {
-    client.initialize();
-    console.log('🔄 Reconnecting...');
-  }, 5000);
-});
-
-// --- CALL HANDLER (Reject calls & Auto-reply) ---
-client.on('call', async (call) => {
-  console.log(`[${new Date().toLocaleTimeString()}] 📞 REJECTED CALL FROM ${call.from}`);
-  
-  // 1. Reject the call professionally
-  await call.reject();
-
-  // 2. Send a polite auto-reply in both languages
-  const callReply = `⚠️ *Automatic System Message* ⚠️
-
-*EN:* I am an AI Assistant and cannot answer voice calls. Please use the menu below to chat with me.
-
-*SI:* මම AI සහායකයෙක් බැවින් ඇමතුම් වලට පිළිතුරු දිය නොහැක. කරුණාකර පහත මෙනුව භාවිතා කර මා සමග චැට් කරන්න. 
-
----
-*Type '0' to see the Main Menu.*`;
-
-  await client.sendMessage(call.from, callReply);
-});
-
-// --- BOT LOGIC ---
-client.on('message', async (msg) => {
+async function replyWithTyping(jid, text, imagePath = null) {
   try {
-    // 🔥 ULTRA CRASH GUARD: Block ALL non-private messages immediately
-    if (!msg || !msg.from) return;
-    if (msg.fromMe) return;
-    if (msg.isStatus) return;
-    if (msg.from === 'status@broadcast') return;
-    if (msg.from.includes('@newsletter')) return;
-    if (msg.from.includes('@broadcast')) return;
-    if (msg.type === 'e2e_notification') return;
-
-    // Safely get chat with its own error handler
-    let chat;
-    try {
-      chat = await msg.getChat();
-    } catch (chatErr) {
-      console.log(`[GUARD] Skipped unsupported message type from ${msg.from}`);
-      return; // Safely ignore and keep bot running!
-    }
-
-    // Only respond in private chats, ignore all groups!
-    if (!chat || chat.isGroup) return;
-
-    console.log(`[${new Date().toLocaleTimeString()}] 📩 MSG FROM ${msg.from}: "${msg.body}"`);
-
-    const contact = await msg.getContact();
-  const senderId = msg.from;
-  const messageBody = (msg.body || "").toLowerCase().trim();
-
-  let state = customerStates.get(senderId) || { lang: null, step: 'start' };
-
-  // Language Selection
-  if (!state.lang) {
-    if (messageBody === '1' || messageBody.includes('en')) {
-      state.lang = 'en';
-      customerStates.set(senderId, state);
-      await sendMainMenu(msg, 'en');
-      return;
-    } else if (messageBody === '2' || messageBody.includes('si')) {
-      state.lang = 'si';
-      customerStates.set(senderId, state);
-      await sendMainMenu(msg, 'si');
-      return;
+    await sock.sendPresenceUpdate('composing', jid);
+    await new Promise(r => setTimeout(r, 2000));
+    await sock.sendPresenceUpdate('paused', jid);
+    if (imagePath && fs.existsSync(imagePath)) {
+      await sock.sendMessage(jid, { image: fs.readFileSync(imagePath), caption: text });
     } else {
-      const langOffer = botSettings.langOffer;
-      await replyWithTyping(msg, langOffer);
-      return;
+      await sock.sendMessage(jid, { text });
     }
-  }
-
-  // Handle Commands
-  if (messageBody === '0' || messageBody === 'menu' || messageBody === 'home') {
-    await sendMainMenu(msg, state.lang);
-    return;
-  }
-
-  // Option 1: View Packages
-  if (messageBody === '1') {
-    await sendPackages(msg, state.lang);
-    return;
-  }
-
-  // Option 2: Portfolio
-  if (messageBody === '2') {
-    const text = botSettings.portfolio[state.lang];
-    const imageKey = botSettings.portfolioImage;
-    
-    if (imageKey) {
-      const imgPath = path.join(__dirname, imageKey);
-      if (fs.existsSync(imgPath)) {
-        const media = MessageMedia.fromFilePath(imgPath);
-        await replyWithTyping(msg, text, media);
-        return;
-      }
-    }
-    
-    await replyWithTyping(msg, text);
-    return;
-  }
-
-  // Option 3: Get a Quote / Start Requirements
-  if (messageBody === '3' || state.step.startsWith('ask_')) {
-    await handleRequirements(msg, state);
-    return;
-  }
-
-  // Option 4: Contact
-  if (messageBody === '4') {
-    const text = botSettings.contact[state.lang];
-    await replyWithTyping(msg, text);
-    return;
-  }
-
-  // Option Reset
-  if (messageBody === 'reset') {
-    customerStates.delete(senderId);
-    await replyWithTyping(msg, state.lang === 'en' ? "Session reset." : "සැසිය නැවත ආරම්භ කළා.");
-    return;
-  }
-
-  // --- SIMPLE MENU MODE ---
-  await sendMainMenu(msg, state.lang);
   } catch (err) {
-    console.error(`[CRASH GUARD] Error in message handler:`, err.message);
+    console.error('[REPLY ERROR]', err.message);
   }
-});
-
-async function replyWithTyping(msg, text, media = null) {
-  const chat = await msg.getChat();
-  const contact = await msg.getContact();
-  const senderId = msg.from;
-  let state = customerStates.get(senderId) || { lang: 'en' };
-
-  await chat.sendStateTyping();
-  // Realistic writing delay (3 seconds for "Human" feel)
-  await new Promise(r => setTimeout(r, 3000));
-  
-  // 1. Send the Text/Media Message
-  let sentMsg;
-  if (media) {
-    sentMsg = await client.sendMessage(msg.from, media, { caption: text });
-  } else {
-    sentMsg = await msg.reply(text);
-  }
-
-  return sentMsg;
 }
 
-async function sendMainMenu(msg, lang) {
-  const text = botSettings.mainMenu[lang];
-  await replyWithTyping(msg, text);
+async function sendMainMenu(jid, lang) {
+  await replyWithTyping(jid, botSettings.mainMenu[lang]);
 }
 
-async function sendPackages(msg, lang) {
-  let text = lang === 'en' ? `🏢 *Our Web Packages* 🏢\n\n` : `🏢 *පැකේජ සහ මිල ගණන්* 🏢\n\n`;
-  menuData.forEach(p => {
-    text += `🔹 *${p.name}* - LKR ${p.price > 0 ? p.price.toLocaleString() + '+' : 'Consult'}\n   _${p.description}_\n\n`;
-  });
-  const packagePrompt = botSettings.packagePrompt[lang];
-  await replyWithTyping(msg, packagePrompt);
-
+async function sendPackages(jid, lang) {
+  await replyWithTyping(jid, botSettings.packagePrompt[lang]);
   const imgPath = path.join(__dirname, 'menu.png');
   if (fs.existsSync(imgPath)) {
-    const media = MessageMedia.fromFilePath(imgPath);
-    await client.sendMessage(msg.from, media, { caption: lang === 'en' ? "Comparison chart of our services." : "අප ලබාදෙන සේවාවන්හි සාරාංශය." });
+    await sock.sendMessage(jid, {
+      image: fs.readFileSync(imgPath),
+      caption: lang === 'en' ? 'Comparison chart of our services.' : 'අප ලබාදෙන සේවාවන්හි සාරාංශය.'
+    });
   }
 }
 
-async function handleRequirements(msg, state) {
-  const senderId = msg.from;
-  const messageBody = msg.body;
-
-  if (state.step === 'start' || msg.body === '3') {
+async function handleRequirements(jid, state, messageBody, senderName) {
+  if (state.step === 'start' || messageBody === '3') {
     state.step = 'ask_type';
-    const q = state.lang === 'en' ? "What kind of website do you need?\n(E.g., Blog, Business Profile, E-commerce, Portolio)" : "ඔබට අවශ්‍ය කුමන ආකාරයේ වෙබ් අඩවියක්ද? \n(උදා: බිස්නස්, ඔන්ලයින් ශොප්, පෞද්ගලික)";
-    await replyWithTyping(msg, q);
-  } 
-  else if (state.step === 'ask_type') {
+    const q = state.lang === 'en'
+      ? 'What kind of website do you need?\n(E.g., Blog, Business Profile, E-commerce, Portfolio)'
+      : 'ඔබට අවශ්‍ය කුමන ආකාරයේ වෙබ් අඩවියක්ද?\n(උදා: බිස්නස්, ඔන්ලයින් ශොප්, පෞද්ගලික)';
+    await replyWithTyping(jid, q);
+  } else if (state.step === 'ask_type') {
     state.temp_data = { type: messageBody };
     state.step = 'ask_name';
-    const q = state.lang === 'en' ? "Great! What is your Business or Project name?" : "නියමයි! අදාළ ව්‍යාපාරයේ හෝ ව්‍යාපෘතියේ නම කුමක්ද?";
-    await replyWithTyping(msg, q);
-  }
-  else if (state.step === 'ask_name') {
+    const q = state.lang === 'en'
+      ? 'Great! What is your Business or Project name?'
+      : 'නියමයි! අදාළ ව්‍යාපාරයේ හෝ ව්‍යාපෘතියේ නම කුමක්ද?';
+    await replyWithTyping(jid, q);
+  } else if (state.step === 'ask_name') {
     state.temp_data.name = messageBody;
     state.step = 'ask_budget';
-    const q = state.lang === 'en' ? "What is your estimated budget? (Optional or type a range)" : "ඔබ හිතාගෙන ඉන්නා මිල පරාසය කුමක්ද?";
-    await replyWithTyping(msg, q);
-  }
-  else if (state.step === 'ask_budget') {
+    const q = state.lang === 'en'
+      ? 'What is your estimated budget? (Optional or type a range)'
+      : 'ඔබ හිතාගෙන ඉන්නා මිල පරාසය කුමක්ද?';
+    await replyWithTyping(jid, q);
+  } else if (state.step === 'ask_budget') {
     state.temp_data.budget = messageBody;
     state.step = 'final';
-    
-    const contact = await msg.getContact();
-    const customer_name = contact.pushname || 'Client';
     const desc = `Web Lead: ${state.temp_data.type} for ${state.temp_data.name}. Budget: ${state.temp_data.budget}`;
-    
-    // Save as Inquiry in JSON (Binary-Free) 🛡️
     const orders = getOrders();
-    const newId = Date.now(); // Unique ID using timestamp
+    const newId = Date.now();
     const newOrder = {
       id: newId,
-      customer_name,
-      customer_number: senderId,
+      customer_name: senderName,
+      customer_number: jid,
       items: desc,
       total: 0,
       status: 'New Lead',
       timestamp: new Date().toISOString()
     };
-    
     orders.push(newOrder);
     saveOrders(orders);
-
-    const success = state.lang === 'en' 
-      ? `✅ *Inquiry Submitted!* (Lead #${newId})\n\nThank you, ${customer_name}. I'll review your requirements and reach out very soon.\nPortfolio: ravindushehara.me`
-      : `✅ *විමසීම සාර්ථකව යොමු කළා!* (Lead #${newId})\n\nස්තූතියි, ${customer_name}. මම ඔබේ අවශ්‍යතා පරීක්ෂා කර ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි.\nravindushehara.me`;
-    
-    await replyWithTyping(msg, success);
+    const success = state.lang === 'en'
+      ? `✅ *Inquiry Submitted!* (Lead #${newId})\n\nThank you, ${senderName}. I'll review your requirements and reach out very soon.\nPortfolio: ravindushehara.me`
+      : `✅ *විමසීම සාර්ථකව යොමු කළා!* (Lead #${newId})\n\nස්තූතියි, ${senderName}. මම ඔබේ අවශ්‍යතා පරීක්ෂා කර ඉතා ඉක්මනින් ඔබ හා සම්බන්ධ වන්නෙමි.\nravindushehara.me`;
+    await replyWithTyping(jid, success);
     io.emit('new_order', newOrder);
-    state.step = 'start'; // back to main
+    state.step = 'start';
   }
-  customerStates.set(senderId, state);
+  customerStates.set(jid, state);
 }
 
+async function connectToWhatsApp() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+  const { version } = await fetchLatestBaileysVersion();
+
+  sock = makeWASocket({
+    version,
+    logger: pino({ level: 'silent' }), // Silent logs (no spam!)
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Ravindu Agency Bot', 'Chrome', '1.0.0'],
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 25000, // Keep connection alive!
+    retryRequestDelayMs: 2000,
+  });
+
+  sock.ev.on('creds.update', saveCreds);
+
+  // --- CONNECTION HANDLER ---
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      console.log('📢 --- NEW QR CODE! SCAN WITH WHATSAPP ---');
+      qrcode.generate(qr, { small: true });
+    }
+
+    if (connection === 'close') {
+      const statusCode = (lastDisconnect?.error instanceof Boom)
+        ? lastDisconnect?.error?.output?.statusCode
+        : 0;
+
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      console.log(`⚠️ Disconnected (${statusCode}). Reconnect: ${shouldReconnect}`);
+
+      if (shouldReconnect) {
+        console.log('🔄 Auto-reconnecting in 3 seconds...');
+        setTimeout(connectToWhatsApp, 3000);
+      } else {
+        console.log('❌ Logged out! Delete "auth_info_baileys" folder and restart.');
+      }
+    } else if (connection === 'open') {
+      console.log('🚀 --- AGENT RAVINDU BOT IS ONLINE & READY! (Baileys Mode 🛡️) ---');
+    }
+  });
+
+  // --- CALL HANDLER (Auto-reject) ---
+  sock.ev.on('call', async (calls) => {
+    for (const call of calls) {
+      if (call.status === 'offer') {
+        console.log(`📞 REJECTED CALL FROM ${call.from}`);
+        await sock.rejectCall(call.id, call.from);
+        const callReply = `⚠️ *Automatic System Message* ⚠️\n\n*EN:* I am an AI Assistant and cannot answer voice calls. Please use the menu below to chat with me.\n\n*SI:* මම AI සහායකයෙක් බැවින් ඇමතුම් වලට පිළිතුරු දිය නොහැක. කරුණාකර පහත මෙනුව භාවිතා කර මා සමග චැට් කරන්න.\n\n*Type \'0\' to see the Main Menu.*`;
+        await sock.sendMessage(call.from, { text: callReply });
+      }
+    }
+  });
+
+  // --- MESSAGE HANDLER ---
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    try {
+      if (type !== 'notify') return;
+      const msg = messages[0];
+      if (!msg?.message) return;
+      if (msg.key.fromMe) return;
+
+      const jid = msg.key.remoteJid;
+      if (!jid) return;
+      if (jid.endsWith('@g.us')) return;          // Ignore groups
+      if (jid.includes('newsletter')) return;     // Ignore newsletters
+      if (jid === 'status@broadcast') return;     // Ignore status
+
+      const messageBody = (
+        msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text || ''
+      ).toLowerCase().trim();
+
+      const senderName = msg.pushName || 'Client';
+      console.log(`[${new Date().toLocaleTimeString()}] 📩 FROM ${jid}: "${messageBody}"`);
+
+      let state = customerStates.get(jid) || { lang: null, step: 'start' };
+
+      // --- LANGUAGE SELECTION ---
+      if (!state.lang) {
+        if (messageBody === '1' || messageBody.includes('en')) {
+          state.lang = 'en';
+          customerStates.set(jid, state);
+          await sendMainMenu(jid, 'en');
+        } else if (messageBody === '2' || messageBody.includes('si')) {
+          state.lang = 'si';
+          customerStates.set(jid, state);
+          await sendMainMenu(jid, 'si');
+        } else {
+          await replyWithTyping(jid, botSettings.langOffer);
+        }
+        return;
+      }
+
+      // --- MENU COMMANDS ---
+      if (messageBody === '0' || messageBody === 'menu' || messageBody === 'home') {
+        await sendMainMenu(jid, state.lang);
+        return;
+      }
+      if (messageBody === '1') {
+        await sendPackages(jid, state.lang);
+        return;
+      }
+      if (messageBody === '2') {
+        const text = botSettings.portfolio[state.lang];
+        const imageKey = botSettings.portfolioImage;
+        const imgPath = imageKey ? path.join(__dirname, imageKey) : null;
+        await replyWithTyping(jid, text, imgPath);
+        return;
+      }
+      if (messageBody === '3' || state.step.startsWith('ask_')) {
+        await handleRequirements(jid, state, messageBody, senderName);
+        return;
+      }
+      if (messageBody === '4') {
+        await replyWithTyping(jid, botSettings.contact[state.lang]);
+        return;
+      }
+      if (messageBody === 'reset') {
+        customerStates.delete(jid);
+        await replyWithTyping(jid, state.lang === 'en' ? 'Session reset.' : 'සැසිය නැවත ආරම්භ කළා.');
+        return;
+      }
+
+      // --- DEFAULT: Show menu ---
+      await sendMainMenu(jid, state.lang);
+
+    } catch (err) {
+      console.error('[CRASH GUARD] Message handler error:', err.message);
+    }
+  });
+}
+
+// --- START SERVER & BOT ---
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`Express Dashboard: http://localhost:${PORT}`);
-  client.initialize();
+  console.log(`📊 Express Dashboard: http://localhost:${PORT}`);
+  connectToWhatsApp();
 });
